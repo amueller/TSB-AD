@@ -36,6 +36,7 @@ try:
     from models.FITS import FITS
     from models.Donut import Donut
     from models.OFA import OFA
+    from models.spectral_residual import spectral_residual
     # from models.Chronos import Chronos
 except:
     # from .models.NormA import NORMA
@@ -67,9 +68,10 @@ except:
     from .models.FITS import FITS
     from .models.Donut import Donut
     from .models.OFA import OFA
+    from .models.spectral_residual import spectral_residual
     # from .models.Chronos import Chronos    
 
-Unsupervise_AD_Pool = ['NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
+Unsupervise_AD_Pool = ['Random', 'Random2', 'SR', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
 Semisupervise_AD_Pool = ['MCD', 'Sub_MCD', 'OCSVM', 'Sub_OCSVM', 'AutoEncoder', 'CNN', 'LSTMAD', 'TranAD', 'USAD', 'OmniAnomaly', 'AnomalyTransformer', 'TimesNet', 'FITS', 'Donut', 'OFA']
 
 def run_Unsupervise_AD(model_name, data, **kwargs):
@@ -150,6 +152,20 @@ def run_SAND(data, periodicity=1):
     score = clf.decision_scores_
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
     return score
+
+
+def run_Random(data, periodicity=1):
+    return np.random.uniform(size=data.shape[0])
+
+
+def run_Random2(data, periodicity=1):
+    return (np.random.uniform(size=data.shape[0]) > 0.5).astype(float)
+
+
+def run_SR(data, periodicity=1):
+    slidingWindow = find_length_rank(data, rank=periodicity)
+    return spectral_residual(data, window_size=slidingWindow)
+
 
 # def run_Series2Graph(data, periodicity=1):
 #     slidingWindow = find_length_rank(data, rank=periodicity)

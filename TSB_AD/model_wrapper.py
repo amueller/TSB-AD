@@ -71,11 +71,13 @@ except:
     from .models.spectral_residual import spectral_residual
     # from .models.Chronos import Chronos    
 
-Unsupervise_AD_Pool = ['Random', 'Random2', 'SR', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
+Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
 Semisupervise_AD_Pool = ['MCD', 'Sub_MCD', 'OCSVM', 'Sub_OCSVM', 'AutoEncoder', 'CNN', 'LSTMAD', 'TranAD', 'USAD', 'OmniAnomaly', 'AnomalyTransformer', 'TimesNet', 'FITS', 'Donut', 'OFA']
 
 def run_Unsupervise_AD(model_name, data, **kwargs):
     try:
+        if model_name == "MatrixProfile1NoNormalize":
+            model_name = "MatrixProfile"
         function_name = f'run_{model_name}'
         function_to_call = globals()[function_name]
         results = function_to_call(data, **kwargs)
@@ -137,9 +139,9 @@ def run_POLY(data, periodicity=1, power=3, n_jobs=1):
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
     return score
 
-def run_MatrixProfile(data, periodicity=1, n_jobs=1):
+def run_MatrixProfile(data, periodicity=1, n_jobs=1, normalize=True):
     slidingWindow = find_length_rank(data, rank=periodicity)
-    clf = MatrixProfile(window=slidingWindow)
+    clf = MatrixProfile(window=slidingWindow, normalize=normalize)
     clf.fit(data)
     score = clf.decision_scores_
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
@@ -264,6 +266,15 @@ def run_KNN(data, n_neighbors=10, method='largest', periodicity=1, n_jobs=1):
     score = clf.decision_scores_
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
     return score
+
+
+def run_Sub_KMeansAD(data, n_clusters=20, n_jobs=1, periodicity=1):
+    slidingWindow = find_length_rank(data, rank=periodicity)
+    clf = KMeansAD(k=n_clusters, window_size=slidingWindow, stride=1, n_jobs=n_jobs)
+    score = clf.fit_predict(data)
+    score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
+    return score
+
 
 def run_KMeansAD(data, n_clusters=20, window_size=20, n_jobs=1):
     clf = KMeansAD(k=n_clusters, window_size=window_size, stride=1, n_jobs=n_jobs)

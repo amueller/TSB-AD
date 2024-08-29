@@ -19,9 +19,10 @@ class MatrixProfile():
         fitted.
     """
 
-    def __init__(self, window):
+    def __init__(self, window, normalize=True):
         self.window = window
         self.model_name = 'MatrixProfile'
+        self.normalize = normalize
 
     def fit(self, X, y=None):
         """Fit detector. y is ignored in unsupervised methods.
@@ -38,8 +39,7 @@ class MatrixProfile():
         self : object
             Fitted estimator.
         """
-        self.profile = stumpy.stump(X.ravel(),m=self.window)
-        #self.profile = mp.compute(X, windows=self.window)
+        self.profile = stumpy.stump(X.ravel(), m=self.window, normalize=self.normalize)
         res = np.zeros(len(X))
         res.fill(self.profile[:, 0].min())
         res[self.window//2:-self.window//2+1] = self.profile[:, 0]

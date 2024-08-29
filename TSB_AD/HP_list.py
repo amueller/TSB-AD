@@ -220,6 +220,7 @@ Optimal_Uni_algo_HP_dict = {
     'Random2': {'periodicity': 1},
     'POLY': {'periodicity': 1, 'power': 2},
     'MatrixProfile': {'periodicity': 2},
+    'MatrixProfile1NoNormalize': {'periodicity': 1, 'normalize': False},
     'NORMA': {'periodicity': 1, 'clustering': 'hierarchical'},
     'PCA': {'periodicity': 1, 'n_components': None},        
     'HBOS': {'periodicity': 1, 'n_bins': 20},

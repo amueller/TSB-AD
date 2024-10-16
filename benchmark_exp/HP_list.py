@@ -32,6 +32,7 @@ Optimal_Uni_algo_HP_dict = {
     'Sub_KMeansAD': {'n_clusters': 30, 'periodicity': 1},
     'LOF':{},
     'SR':{},
+    'Decompose':{'periodicity': 1},
     'Random':{},
     'Random2': {'periodicity': 1},
     'Sub_KNN':{},

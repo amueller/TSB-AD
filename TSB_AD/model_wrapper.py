@@ -37,6 +37,7 @@ try:
     from models.Donut import Donut
     from models.OFA import OFA
     from models.spectral_residual import spectral_residual
+    from models.series_decompose import series_decompose
     # from models.Chronos import Chronos
 except:
     # from .models.NormA import NORMA
@@ -69,9 +70,10 @@ except:
     from .models.Donut import Donut
     from .models.OFA import OFA
     from .models.spectral_residual import spectral_residual
+    from .models.series_decompose import series_decompose
     # from .models.Chronos import Chronos    
 
-Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
+Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'Decompose', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
 Semisupervise_AD_Pool = ['MCD', 'Sub_MCD', 'OCSVM', 'Sub_OCSVM', 'AutoEncoder', 'CNN', 'LSTMAD', 'TranAD', 'USAD', 'OmniAnomaly', 'AnomalyTransformer', 'TimesNet', 'FITS', 'Donut', 'OFA']
 
 def run_Unsupervise_AD(model_name, data, **kwargs):
@@ -167,6 +169,10 @@ def run_Random2(data, periodicity=1):
 def run_SR(data, periodicity=1):
     slidingWindow = find_length_rank(data, rank=periodicity)
     return spectral_residual(data, window_size=slidingWindow)
+
+def run_Decompose(data, periodicity=1):
+    slidingWindow = find_length_rank(data, rank=periodicity)
+    return series_decompose(data, window_size=slidingWindow)
 
 
 # def run_Series2Graph(data, periodicity=1):

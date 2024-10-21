@@ -3,7 +3,20 @@ import matplotlib.patches as patches
 from matplotlib.ticker import MultipleLocator
 import numpy as np
 import pandas as pd
+from statsmodels.tsa.stattools import acf
+from scipy.signal import find_peaks, peak_prominences, peak_widths
+from scipy import stats
 
+
+def load_series(files):
+    results = {}
+    for f in files:
+        if not f.endswith(".csv"):
+            f = f + ".csv"
+        df = pd.read_csv("benchmark_exp/TSB-AD/TSB-AD-U/" + f)
+        results[f.split(".")[0]] = df
+    return results
+    
 
 def plot_detection(signal, label, scores=None, train=None, ax=None, linewidth=1, window_length=None):
     if train is not None:
@@ -39,9 +52,10 @@ def plot_detection(signal, label, scores=None, train=None, ax=None, linewidth=1,
     plt.legend(handles=[a, b, red_patch] if b is not None else [a, red_patch])
     if window_length is not None:
         locator = MultipleLocator(window_length)
-        locator.MAXTICKS = 5000
+        locator.MAXTICKS = 2000
         signal_ax.xaxis.set_minor_locator(locator)
     return signal_ax
+
 
 def get_anomaly_regions(labels):
     anomaly_starts = np.where(np.diff(labels) == 1)[0] + 1
@@ -57,30 +71,57 @@ def get_anomaly_regions(labels):
     return list(zip(anomaly_starts, anomaly_ends))
 
 
-def find_length(data):
+def find_length(data, prominence_percentile=90, max_peaks=10, width_percentile=90, n_lags=5000):
     a, b = np.quantile(data, [0.001, 0.999])
-    data = np.clip(data, a, b)
-    
-    #data = data[:min(20000, len(data))]
-    n_lags = 5000
-    base = 3
-    auto_corr = acf(data, nlags=n_lags, fft=True)[base:]
-    try:
-        peaks, _ = find_peaks(auto_corr)
-        prominences = peak_prominences(auto_corr, peaks)[0]
-        peaks = peaks + base
+    data_clipped = np.clip(data, a, b)
+    auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
+    peaks, _ = find_peaks(auto_corr)
+
+    prominences = peak_prominences(auto_corr, peaks)[0]
+    widths = peak_widths(auto_corr, peaks)[0]
+
+    if len(prominences):
         prominent_peak_idx = np.argmax(prominences)
-    except:
-        return []
-    if prominences[prominent_peak_idx] < 0.1:
-        result = []
     else:
-        highest_peak = np.argmax(auto_corr[peaks - base])
-        ac_of_prominent = auto_corr[peaks[prominent_peak_idx] - base]
-        # 99% significance level of autocorrelation
-        if ac_of_prominent < 2.576 / np.sqrt(len(data)):
-            return []
-        result = [peaks[prominent_peak_idx]]
-        if highest_peak != prominent_peak_idx and prominences[highest_peak] > 0.1:
-            result.append(peaks[highest_peak])
+        return 0
+
+    # easy mode assumption, mostly if there's only one periodicity
+    masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
+    result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
+
+    prominence_threshold = np.percentile(prominences, prominence_percentile)
+    pruned_inds = masked_inds[prominences[masked_inds] > prominence_threshold]
+
+    mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])))
+    if mode.count > 1 and mode.mode in peaks[pruned_inds] or mode.count > 3:
+        result = mode.mode
+    
+    return result
+
+    # sorted_peaks = np.argsort(prominences)[::-1]
+    # pruned_peaks = sorted_peaks[:max_peaks]
+    # widths_threshold = np.percentile(widths, width_percentile)
+    # pruned_peaks = pruned_peaks[prominences[pruned_peaks] > prominence_threshold]
+    # pruned_peaks = pruned_peaks[widths[pruned_peaks] > widths_threshold]
+
+    # mode = stats.mode(np.diff(np.sort(peaks[pruned_peaks])))
+    # if mode.count > 1 and mode.mode in peaks[sorted_peaks[:max_peaks]] or mode.count > 3:
+    #     result = mode.mode
+    # else:
+    #     result = peaks[prominent_peak_idx]
+
+    # if prominences[prominent_peak_idx] < prominence_threshold:
+    #     result = [0]
+    # else:
+    #     highest_peak = np.argmax(auto_corr[peaks])
+    #     ac_of_prominent = auto_corr[peaks[prominent_peak_idx]]
+    #     # 99% significance level of autocorrelation
+    #     if ac_of_prominent < 2.576 / np.sqrt(len(data)):
+    #         result, prominences_returned = [0], [0]
+    #     else:
+    #         result = [peaks[prominent_peak_idx]]
+    #         prominences_returned = [prominences[prominent_peak_idx]]
+    #         if highest_peak != prominent_peak_idx and prominences[highest_peak] > prominence_threshold:
+    #             result.append(peaks[highest_peak])
+    #             prominences_returned.append(prominences[highest_peak])
     return result

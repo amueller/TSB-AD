@@ -71,7 +71,7 @@ def get_anomaly_regions(labels):
     return list(zip(anomaly_starts, anomaly_ends))
 
 
-def find_length(data, prominence_percentile=90, max_peaks=10, width_percentile=90, n_lags=5000):
+def find_length(data, prominence_percentile=90, n_lags=5000):
     a, b = np.quantile(data, [0.001, 0.999])
     data_clipped = np.clip(data, a, b)
     auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
@@ -95,6 +95,11 @@ def find_length(data, prominence_percentile=90, max_peaks=10, width_percentile=9
     mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])))
     if mode.count > 1 and mode.mode in peaks[pruned_inds] or mode.count > 3:
         result = mode.mode
+
+    if 4 * result > n_lags and 4 * result < len(data):
+        print(f"4 * {result} >= {n_lags}, trying again")
+        # we didn't see enough lags for robust detection
+        result = find_length(data, prominence_percentile=prominence_percentile, n_lags=result * 4)         
     
     return result
 

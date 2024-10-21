@@ -97,7 +97,6 @@ def find_length(data, prominence_percentile=90, n_lags=5000):
         result = mode.mode
 
     if 4 * result > n_lags and 4 * result < len(data):
-        print(f"4 * {result} >= {n_lags}, trying again")
         # we didn't see enough lags for robust detection
         result = find_length(data, prominence_percentile=prominence_percentile, n_lags=result * 4)         
     

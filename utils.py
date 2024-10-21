@@ -88,8 +88,11 @@ def find_length(data, prominence_percentile=90, n_lags=5000):
     # easy mode assumption, mostly if there's only one periodicity
     masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
     result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
-
-    prominence_threshold = np.percentile(prominences, prominence_percentile)
+    if len(prominences < 2):
+        good_max = np.max(prominences)
+    else:
+        good_max = np.sort(prominences)[-2]
+    prominence_threshold = good_max - 2 * prominences[masked_inds].std()
     pruned_inds = masked_inds[prominences[masked_inds] > prominence_threshold]
 
     mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])))

@@ -78,17 +78,14 @@ def find_length(data, prominence_percentile=90, n_lags=5000):
     peaks, _ = find_peaks(auto_corr)
 
     prominences = peak_prominences(auto_corr, peaks)[0]
-    widths = peak_widths(auto_corr, peaks)[0]
 
-    if len(prominences):
-        prominent_peak_idx = np.argmax(prominences)
-    else:
+    if not len(prominences):
         return 0
 
     # easy mode assumption, mostly if there's only one periodicity
     masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
     result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
-    if len(prominences < 2):
+    if len(prominences) < 2:
         good_max = np.max(prominences)
     else:
         good_max = np.sort(prominences)[-2]
@@ -104,6 +101,17 @@ def find_length(data, prominence_percentile=90, n_lags=5000):
         result = find_length(data, prominence_percentile=prominence_percentile, n_lags=result * 4)         
     
     return result
+
+
+def find_length_diff(data, prominence_percentile=90, n_lags=5000):
+    a, b = np.quantile(data, [0.001, 0.999])
+    data_clipped = np.clip(data, a, b)
+    auto_corr = acf(np.diff(data_clipped), nlags=n_lags, fft=True)
+    auto_corr[:2] = 0
+
+    thresh = np.sort(auto_corr)[-10]
+    return np.where(auto_corr >= thresh)[0][0] 
+
 
     # sorted_peaks = np.argsort(prominences)[::-1]
     # pruned_peaks = sorted_peaks[:max_peaks]
@@ -131,4 +139,4 @@ def find_length(data, prominence_percentile=90, n_lags=5000):
     #         if highest_peak != prominent_peak_idx and prominences[highest_peak] > prominence_threshold:
     #             result.append(peaks[highest_peak])
     #             prominences_returned.append(prominences[highest_peak])
-    return result
+    # return result

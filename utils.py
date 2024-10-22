@@ -71,36 +71,46 @@ def get_anomaly_regions(labels):
     return list(zip(anomaly_starts, anomaly_ends))
 
 
-def find_length(data, prominence_percentile=90, n_lags=5000):
+def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False):
     a, b = np.quantile(data, [0.001, 0.999])
     data_clipped = np.clip(data, a, b)
     auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
     peaks, _ = find_peaks(auto_corr)
 
     prominences = peak_prominences(auto_corr, peaks)[0]
-
+    confirmed = False
     if not len(prominences):
-        return 0
+        return 0, confirmed
 
     # easy mode assumption, mostly if there's only one periodicity
-    masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
-    result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
-    if len(prominences) < 2:
-        good_max = np.max(prominences)
+    if max_filter:
+        masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
     else:
-        good_max = np.sort(prominences)[-2]
+        masked_inds = np.arange(len(peaks))
+    result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
+    sorted_prominences = np.sort(prominences)
+    if len(prominences) < 2:
+        good_max = sorted_prominences[-1]
+    else:
+        good_max = sorted_prominences[-2]
     prominence_threshold = good_max - 2 * prominences[masked_inds].std()
+    if len(prominences) >= 10:
+        prominence_threshold = np.minimum(prominence_threshold, sorted_prominences[-10])
     pruned_inds = masked_inds[prominences[masked_inds] > prominence_threshold]
 
-    mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])))
-    if mode.count > 1 and mode.mode in peaks[pruned_inds] or mode.count > 3:
+    # hard-coded maximum number of peaks to consider as 20
+    mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])[:20]))
+    # hard-coded minimum periodicity of 5
+    if mode.count > 1 and mode.mode in peaks[pruned_inds] or (mode.count > 3 and mode.mode > 5):
         result = mode.mode
+        confirmed = True
 
     if 4 * result > n_lags and 4 * result < len(data):
         # we didn't see enough lags for robust detection
-        result = find_length(data, prominence_percentile=prominence_percentile, n_lags=result * 4)         
+        result, confirmed = find_length(data, prominence_percentile=prominence_percentile,
+                                        n_lags=result * 4, max_filter=max_filter)         
     
-    return result
+    return result, confirmed
 
 
 def find_length_diff(data, prominence_percentile=90, n_lags=5000):

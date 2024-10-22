@@ -103,11 +103,11 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False):
         if (mode.count > 3 and mode.mode > 5):
             result = mode.mode
             confirmed = True
-        elif mode.count > 1 and mode.mode in peaks[pruned_inds]:
+        elif mode.count > 1 and mode.mode in peaks[pruned_inds] and mode.mode > 5:
             # usually mode is the first peak but not always.
             confirmed = True
             result = mode.mode
-        else:
+        elif mode.mode > 5:
             diffs = np.diff(np.sort(peaks[pruned_inds])[:20])
             good_diffs = np.abs(diffs - peaks[pruned_inds][0]) / diffs < 0.05  # within 5% of first peak
             if good_diffs.sum() > 2:

@@ -71,7 +71,8 @@ def get_anomaly_regions(labels):
     return list(zip(anomaly_starts, anomaly_ends))
 
 
-def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False):
+def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
+                ensure_min_points=False, std_multiplier=2):
     a, b = np.quantile(data, [0.001, 0.999])
     data_clipped = np.clip(data, a, b)
     auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
@@ -93,7 +94,10 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False):
         good_max = sorted_prominences[-1]
     else:
         good_max = sorted_prominences[-2]
-    prominence_threshold = good_max - 2 * prominences[masked_inds].std()
+    prominence_threshold = good_max - std_multiplier * prominences[masked_inds].std()
+    if ensure_min_points:
+        if len(masked_inds) > 10:
+            prominence_threshold = min(prominence_threshold, np.sort(prominences[masked_inds])[-10])
     pruned_inds = masked_inds[prominences[masked_inds] > prominence_threshold]
 
     if len(pruned_inds) > 2:
@@ -120,7 +124,6 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False):
         # we didn't see enough lags for robust detection
         result, confirmed, max_prominence = find_length(data, prominence_percentile=prominence_percentile,
                                         n_lags=result * 4, max_filter=max_filter)         
-    
     return result, confirmed, max_prominence
 
 

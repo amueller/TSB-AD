@@ -71,8 +71,58 @@ def get_anomaly_regions(labels):
     return list(zip(anomaly_starts, anomaly_ends))
 
 
+def all_peak_analysis(data, n_lags=5000):
+    a, b = np.quantile(data, [0.001, 0.999])
+    data_clipped = np.clip(data, a, b)
+    auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
+    peaks, _ = find_peaks(auto_corr)
+
+    prominences = peak_prominences(auto_corr, peaks)[0]
+    widths = peak_widths(auto_corr, peaks, rel_height=0.5)[0]
+    auto_corr_peaks = auto_corr[peaks]
+    width_fraction = widths / peaks
+    return {'peaks': peaks,
+            'prominences': prominences,
+            'widths': widths,
+            'auto_corr': auto_corr_peaks,
+            'width_fraction': width_fraction,
+            'peak_idx': np.arange(len(peaks)),
+            'prominence_ranks': stats.rankdata(-prominences),
+            'width_fraction_ranks': stats.rankdata(-width_fraction),
+            'auto_corr_ranks': stats.rankdata(-auto_corr_peaks)}
+
+
+def peak_analysis(data, n_lags=5000):
+    a, b = np.quantile(data, [0.001, 0.999])
+    data_clipped = np.clip(data, a, b)
+    auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
+    peaks, _ = find_peaks(auto_corr)
+
+    prominences = peak_prominences(auto_corr, peaks)[0]
+    widths = peak_widths(auto_corr, peaks, rel_height=0.5)[0]
+
+    most_prominent_idx = np.argmax(prominences)
+    most_prominent_peak = peaks[most_prominent_idx]
+    most_prominent_prominence = prominences[most_prominent_idx]
+    
+    first_peak = peaks[0]
+    first_prominence = prominences[0]
+    first_width = widths[0]
+    first_prominence_rank = np.argsort(prominences)[::-1].tolist().index(0)
+
+
+    return {'prominent_peak': most_prominent_peak,
+            'prominent_prominence': most_prominent_prominence, 
+            'prominent_width': widths[most_prominent_idx],
+            'first_peak': first_peak,
+            'first_prominence': first_prominence,
+            'first_width': first_width,
+            'first_prominence_rank': first_prominence_rank}
+
+
 def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
-                ensure_min_points=False, std_multiplier=2):
+                ensure_min_points=False, std_multiplier=2, scale_n_lags=False,
+                most_prominent=True):
     a, b = np.quantile(data, [0.001, 0.999])
     data_clipped = np.clip(data, a, b)
     auto_corr = acf(data_clipped, nlags=n_lags, fft=True)
@@ -88,7 +138,12 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
         masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
     else:
         masked_inds = np.arange(len(peaks))
-    result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
+    if most_prominent:
+        result = peaks[masked_inds[np.argmax(prominences[masked_inds])]]
+    else:
+        result = peaks[masked_inds[0]]
+        if result < 3:
+            result = peaks[masked_inds[1]]
     sorted_prominences = np.sort(prominences)
     if len(prominences) < 2:
         good_max = sorted_prominences[-1]
@@ -104,7 +159,7 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
         # hard-coded maximum number of peaks to consider as 20
         mode = stats.mode(np.diff(np.sort(peaks[pruned_inds])[:20]))
         # hard-coded minimum periodicity of 5
-        if (mode.count > 3 and mode.mode > 5):
+        if (mode.count > 3 and mode.mode > 3) and (mode.mode in peaks[masked_inds] or mode.mode * 2 in peaks[masked_inds] or mode.mode * 3 in peaks[masked_inds] or mode.mode * 4 in peaks[masked_inds]):
             result = mode.mode
             confirmed = True
         elif mode.count > 1 and mode.mode in peaks[pruned_inds] and mode.mode > 5:
@@ -120,10 +175,11 @@ def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
 
     max_prominence = np.max(prominences)
 
-    if 4 * result > n_lags and 4 * result < len(data):
-        # we didn't see enough lags for robust detection
-        result, confirmed, max_prominence = find_length(data, prominence_percentile=prominence_percentile,
-                                        n_lags=result * 4, max_filter=max_filter)         
+    if scale_n_lags:
+        if 4 * result > n_lags and 4 * result < len(data):
+            # we didn't see enough lags for robust detection
+            result, confirmed, max_prominence = find_length(data, prominence_percentile=prominence_percentile,
+                                            n_lags=result * 4, max_filter=max_filter)         
     return result, confirmed, max_prominence
 
 

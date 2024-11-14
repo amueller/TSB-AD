@@ -120,6 +120,37 @@ def peak_analysis(data, n_lags=5000):
             'first_prominence_rank': first_prominence_rank}
 
 
+def random_walk(length=10000):
+    return np.cumsum(np.random.uniform(-1, 1, size=length))
+
+def noise(length=10000):
+    return np.random.normal(size=length)
+
+def periodic(length=10000, period=100):
+    pattern = random_walk(period)
+    ind = np.arange(length)
+    return pattern[ind % period]
+
+
+def make_series(num_periods=1, base_period=True, max_length=10000):
+    length = np.random.randint(100, max_length)
+    noise_strength = np.random.uniform(0, 10)
+    signal = random_walk(length=length) + noise_strength * noise(length=length)
+    periods = []
+    for period in range(num_periods):
+        period_strength = np.random.uniform(0, 10)
+        if base_period and len(periods):
+            if length //  (10 * periods[0][1]) <= 3:
+                break
+            period = periods[0][1] * np.random.randint(3, min(2000, length //  (10 * periods[0][1])))
+        else:
+            period = np.random.randint(3, np.random.randint(5, min(2000, length // 10)))
+        periods.append([period_strength, period])
+        signal = signal + period_strength * periodic(period=period, length=length)
+    return signal, periods, length, noise_strength
+
+
+
 def find_length(data, prominence_percentile=90, n_lags=5000, max_filter=False,
                 ensure_min_points=False, std_multiplier=2, scale_n_lags=False,
                 most_prominent=True):

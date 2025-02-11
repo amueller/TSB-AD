@@ -1,9 +1,9 @@
 import numpy as np
 import math
 try:
-    from utils.slidingWindows import find_length_rank
+    from utils.slidingWindows import find_length_rank, find_length
 except:
-    from .utils.slidingWindows import find_length_rank
+    from .utils.slidingWindows import find_length_rank, find_length
 from sklearn.preprocessing import MinMaxScaler
 
 try:
@@ -73,7 +73,8 @@ except:
     from .models.series_decompose import series_decompose
     # from .models.Chronos import Chronos    
 
-Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'Decompose', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
+Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'SR_with_window_size', 'SR_better_window_size', 'Decompose', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', '', 'Sub_PCA_projection',
+                       'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
 Semisupervise_AD_Pool = ['MCD', 'Sub_MCD', 'OCSVM', 'Sub_OCSVM', 'AutoEncoder', 'CNN', 'LSTMAD', 'TranAD', 'USAD', 'OmniAnomaly', 'AnomalyTransformer', 'TimesNet', 'FITS', 'Donut', 'OFA']
 
 def run_Unsupervise_AD(model_name, data, **kwargs):
@@ -167,8 +168,20 @@ def run_Random2(data, periodicity=1):
 
 
 def run_SR(data, periodicity=1):
+    return spectral_residual(data, window_size=None)
+
+
+def run_SR_with_window_size(data, periodicity=1):
     slidingWindow = find_length_rank(data, rank=periodicity)
     return spectral_residual(data, window_size=slidingWindow)
+
+
+def run_SR_better_window_size(data, periodicity=1):
+    slidingWindow, _, _= find_length(data)
+    if slidingWindow == 0:
+        slidingWindow = 125
+    return spectral_residual(data, window_size=slidingWindow)
+
 
 def run_Decompose(data, periodicity=1):
     slidingWindow = find_length_rank(data, rank=periodicity)
@@ -196,6 +209,24 @@ def run_Sub_PCA(data, periodicity=1, n_components=None, n_jobs=1):
     score = clf.decision_scores_
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
     return score
+
+
+def run_Sub_PCA_projection_quo_vadis(data, n_jobs=1):
+    clf = PCA(slidingWindow=5, n_components=2, use_projection=True)
+    clf.fit(data)
+    score = clf.decision_scores_
+    score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
+    return score
+
+
+def run_Sub_PCA_projection(data, periodicity=1, n_jobs=1):
+    slidingWindow = find_length_rank(data, rank=periodicity)
+    clf = PCA(slidingWindow=slidingWindow, n_components=0.99, use_projection=True)
+    clf.fit(data)
+    score = clf.decision_scores_
+    score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
+    return score
+
 
 def run_PCA(data, periodicity=1, n_components=None, n_jobs=1):
     slidingWindow = find_length_rank(data, rank=periodicity)

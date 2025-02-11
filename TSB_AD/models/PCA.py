@@ -194,7 +194,7 @@ class PCA(BaseDetector):
     def __init__(self, slidingWindow=100, sub = True, n_components=None, n_selected_components=None,
                  contamination=0.1, copy=True, whiten=False, svd_solver='auto',
                  tol=0.0, iterated_power='auto', random_state=0,
-                 weighted=True, standardization=True, zero_pruning=True):
+                 weighted=True, standardization=True, zero_pruning=True, use_projection=False):
 
         super(PCA, self).__init__(contamination=contamination)
         self.slidingWindow = slidingWindow
@@ -210,6 +210,7 @@ class PCA(BaseDetector):
         self.weighted = weighted
         self.standardization = standardization
         self.zero_pruning = zero_pruning
+        self.use_projection = use_projection
 
     # noinspection PyIncorrectDocstring
     def fit(self, X, y=None):
@@ -285,9 +286,12 @@ class PCA(BaseDetector):
         self.selected_w_components_ = self.w_components_[
                                       -1 * self.n_selected_components_:]
 
-        self.decision_scores_ = np.sum(
-            cdist(X, self.selected_components_) / self.selected_w_components_,
-            axis=1).ravel()
+        if self.use_projection:
+            self.decision_scores_ = ((X - self.detector_.inverse_transform(self.detector_.transform(X))) ** 2).sum(axis=1) / (X ** 2).sum(axis=1)
+        else:
+            self.decision_scores_ = np.sum(
+                cdist(X, self.selected_components_) / self.selected_w_components_,
+                axis=1).ravel()
 
         # padded decision_scores_
         if self.decision_scores_.shape[0] < n_samples:

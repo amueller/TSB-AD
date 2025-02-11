@@ -18,11 +18,13 @@ def load_series(files):
     return results
     
 
-def plot_detection(signal, label, scores=None, train=None, ax=None, linewidth=1, window_length=None):
+def plot_detection(signal, label=None, scores=None, train=None, ax=None, linewidth=1, window_length=None, min_anomaly_width=5, percentile=95, score_linestyle="--"):
     if train is not None:
         if signal.index.min() < train.index.max():
             signal.index = signal.index + train.index.max()
     scores = pd.Series(scores, index=signal.index)
+    if label is None:
+        label = (scores > np.percentile(scores, percentile)).astype(int)
     label = pd.Series(np.array(label), index=signal.index)
     if ax is None:
         plt.figure(figsize=(40, 5), dpi=300)
@@ -44,9 +46,15 @@ def plot_detection(signal, label, scores=None, train=None, ax=None, linewidth=1,
     ymax = ylims[1] + 0.1 * yrange
     signal_ax.set_ylim(ymin, ymax)
     for start, end in get_anomaly_regions(label):
-        width = end - start
-        thin_thresh = len(label) / 1e3
-        width = np.maximum(width, thin_thresh)
+        start = label.index[start]
+        end = label.index[end]
+        width_org = end - start
+        width = width_org
+        if min_anomaly_width is not None:
+            width = np.maximum(width, min_anomaly_width)
+        if width > width_org:
+            padding = (width - width_org) // 2
+            start -= padding
         signal_ax.add_patch(patches.Rectangle((start, ylims[0]), width, ylims[1] - ylims[0], facecolor='red', alpha=0.4))
     red_patch = patches.Patch(color='red', label='anomaly', alpha=0.3)
     plt.legend(handles=[a, b, red_patch] if b is not None else [a, red_patch])
@@ -251,3 +259,47 @@ def find_length_diff(data, prominence_percentile=90, n_lags=5000):
     #             result.append(peaks[highest_peak])
     #             prominences_returned.append(prominences[highest_peak])
     # return result
+
+def check_even_fractions(peak_idx, peaks):
+    peak = peaks[peak_idx]
+    for divisor in [2, 3]:
+        if peak % divisor == 0:
+            new_peak_idx = np.where(peaks == peak // divisor)[0]
+            if len(new_peak_idx):
+                peak_idx = new_peak_idx[0]
+                peak = peaks[peak_idx]
+    return peak_idx
+
+
+def find_two_lengths(data, n_lags=5000, peak_threshold1=0.01, peak_threshold2=0.1):
+    auto_corr = acf(data, nlags=n_lags, fft=True)
+    peaks, _ = find_peaks(auto_corr)
+    prominences = peak_prominences(auto_corr, peaks)[0]
+
+    if not len(prominences):
+        return 0, 0
+
+    masked_inds = np.where(auto_corr[peaks] >= np.maximum.accumulate(auto_corr[peaks][::-1])[::-1])[0]
+    result_ind = masked_inds[0]
+    result = peaks[result_ind]
+    if result < 3:
+        result_ind = masked_inds[1]
+        result = peaks[result_ind]
+    second_res_ind = np.argmax(prominences[masked_inds])
+    second_res = peaks[masked_inds[second_res_ind]]
+    second_res_prominence = prominences[second_res_ind]
+
+    if second_res == result and result_ind > 1:
+        # the first non-dominated peak is also the most prominent peak
+        # that likely means any secondary periodicity is dominated by that peak, so smaller than it.
+        # so we pick the most prominent peak that's smaller than the found peak
+        second_res_ind = np.argmax(prominences[:result_ind])
+        second_res_ind = check_even_fractions(second_res_ind, peaks)
+        second_res = peaks[second_res_ind]
+
+    if prominences[result_ind] < peak_threshold1:
+        result = 0
+    if second_res == result or second_res_prominence < peak_threshold2:
+        second_res = 0
+
+    return result, second_res

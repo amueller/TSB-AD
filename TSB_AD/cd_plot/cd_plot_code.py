@@ -144,6 +144,7 @@ def cd_evaluation(performance_per_dataset, maximize_metric, verbose=False, ignor
         None,
         res.effect_size,
         None,
+        None,
     )
     # print(res.rankdf)
     if result.pvalue >= result.alpha:

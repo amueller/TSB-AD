@@ -1,6 +1,9 @@
 import numpy as np
 
+
 def spectral_residual(X, window_size):
+    if not isinstance(X, np.ndarray):
+        X = np.array(X)
     X = (X - X.min()) / (X.max() - X.min())
     X = X.ravel()
     fft = np.fft.fft(X)
@@ -12,7 +15,10 @@ def spectral_residual(X, window_size):
     bias, sym_freq = log_amp[:1], log_amp[1:]
     # select just the first half of the sym_freq
     freq = sym_freq[:(len(sym_freq) + 1) // 2]
-    window_amp = 100
+    if window_size is None:
+        window_amp = 100
+    else:
+        window_amp = window_size
 
     pad_left = (window_amp - 1) // 2
     padded_freq = np.concatenate([np.tile(X[0], pad_left), freq, np.tile(X[-1], window_amp - pad_left - 1)])

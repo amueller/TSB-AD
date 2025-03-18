@@ -73,9 +73,10 @@ except:
     from .models.series_decompose import series_decompose
     # from .models.Chronos import Chronos    
 
-Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'SR_with_window_size', 'SR_better_window_size', 'Decompose', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', '', 'Sub_PCA_projection',
-                       'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos']
+Unsupervise_AD_Pool = ['Random', 'MatrixProfile1NoNormalize', 'Random2', 'SR', 'SR_with_window_size', 'SR_better_window_size', 'Decompose', 'NORMA', 'SAND', 'Series2Graph', 'Sub_IForest', 'IForest', 'LOF', 'Sub_LOF', 'POLY', 'MatrixProfile', 'Sub_PCA', 'Sub_PCA_projection_quo_vadis', 'Sub_PCA_projection',
+                       'PCA', 'HBOS', 'Sub_HBOS', 'KNN', 'Sub_KNN','KMeansAD', 'Sub_KMeansAD', 'COPOD', 'CBLOF', 'COF', 'EIF', 'RobustPCA', 'Lag_Llama', 'Chronos', 'Sub_PCA_projection_quo_vadis2', 'Sub_PCA_projection2']
 Semisupervise_AD_Pool = ['MCD', 'Sub_MCD', 'OCSVM', 'Sub_OCSVM', 'AutoEncoder', 'CNN', 'LSTMAD', 'TranAD', 'USAD', 'OmniAnomaly', 'AnomalyTransformer', 'TimesNet', 'FITS', 'Donut', 'OFA']
+
 
 def run_Unsupervise_AD(model_name, data, **kwargs):
     try:
@@ -215,13 +216,30 @@ def run_Sub_PCA_projection_quo_vadis(data, n_jobs=1):
     clf = PCA(slidingWindow=5, n_components=2, use_projection=True)
     clf.fit(data)
     score = clf.decision_scores_
-    score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
+    score = MinMaxScaler().fit_transform(score.reshape(-1,1)).ravel()
+    return score
+
+
+def run_Sub_PCA_projection_quo_vadis2(data, n_jobs=1):
+    clf = PCA(slidingWindow=5, n_components=2, use_projection=True, normalize_magnitude=False)
+    clf.fit(data)
+    score = clf.decision_scores_
+    score = MinMaxScaler().fit_transform(score.reshape(-1,1)).ravel()
     return score
 
 
 def run_Sub_PCA_projection(data, periodicity=1, n_jobs=1):
     slidingWindow = find_length_rank(data, rank=periodicity)
     clf = PCA(slidingWindow=slidingWindow, n_components=0.99, use_projection=True)
+    clf.fit(data)
+    score = clf.decision_scores_
+    score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
+    return score
+
+
+def run_Sub_PCA_projection2(data, periodicity=1, n_jobs=1):
+    slidingWindow = find_length_rank(data, rank=periodicity)
+    clf = PCA(slidingWindow=slidingWindow, n_components=0.99, use_projection=True, normalize_magnitude=False)
     clf.fit(data)
     score = clf.decision_scores_
     score = MinMaxScaler(feature_range=(0,1)).fit_transform(score.reshape(-1,1)).ravel()
